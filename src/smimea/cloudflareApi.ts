@@ -7,7 +7,7 @@ const API = 'https://api.cloudflare.com/client/v4';
 function headers(token: string): HeadersInit { return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }; }
 function mask(message: string, token: string): string { return token ? message.split(token).join(`${token.slice(0, 4)}…${token.slice(-4)}`) : message; }
 
-export function cloudflareRecordBody(fqdn: string, content: string, ttl: number) {
+export function cloudflareRecordBody(fqdn: string, content: string, ttl: number, email?: string) {
   const [usage, selector, matching_type, ...hexParts] = content.trim().split(/\s+/);
   const certificate = hexParts.join('');
   return {
@@ -16,6 +16,7 @@ export function cloudflareRecordBody(fqdn: string, content: string, ttl: number)
     content,
     ttl,
     data: { usage: Number(usage), selector: Number(selector), matching_type: Number(matching_type), certificate },
+    ...(email ? { comment: `SMIMEA for ${email}` } : {}),
   };
 }
 
@@ -31,8 +32,8 @@ async function cfFetch(path: string, token: string, init: RequestInit = {}) {
   return json;
 }
 
-export async function createCloudflareRecord(config: CloudflareConfig, fqdn: string, content: string): Promise<CloudflareResult> {
-  const body = cloudflareRecordBody(fqdn, content, config.ttl);
+export async function createCloudflareRecord(config: CloudflareConfig, fqdn: string, content: string, email?: string): Promise<CloudflareResult> {
+  const body = cloudflareRecordBody(fqdn, content, config.ttl, email);
   const curl = cloudflareCurl('<CF_API_TOKEN>', config.zoneId || '<ZONE_ID>', body);
   try {
     let zoneId = config.zoneId;

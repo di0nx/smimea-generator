@@ -9,7 +9,8 @@ describe('application shell', () => {
     await import('./main');
 
     expect(document.querySelector('h1')?.textContent).toBe('SMIMEA DNS Record Generator');
-    expect(document.querySelector<HTMLInputElement>('#email')?.placeholder).toBe('dion@kitsos.net');
-    expect(document.querySelector<HTMLButtonElement>('#generate')?.textContent).toContain('SMIMEA generieren');
+    expect(document.querySelector<HTMLInputElement>('#cert')).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>('#checkFqdn')?.placeholder).toContain('example.org');
+    expect(document.querySelector<HTMLButtonElement>('#generate')?.textContent).toContain('ausgewählte Adressen');
   });
 });

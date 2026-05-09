@@ -18,14 +18,14 @@ interface DoHResponse { Status: number; AD?: boolean; Answer?: DoHAnswer[] }
 const SMIMEA_TYPE = 53;
 const RRSIG_TYPE = 46;
 
-export function parseDohResponse(json: DoHResponse, expectedContent: string): Omit<ResolverCheck, 'resolver'> {
+export function parseDohResponse(json: DoHResponse, expectedContent = ''): Omit<ResolverCheck, 'resolver'> {
   const answers = json.Answer ?? [];
   const smimeaAnswers = answers.filter((answer) => answer.type === SMIMEA_TYPE).map((answer) => answer.data);
-  const expected = parseSmimeaContent(expectedContent);
-  const matchesExpected = Boolean(expected && smimeaAnswers.some((answer) => {
+  const expected = expectedContent ? parseSmimeaContent(expectedContent) : null;
+  const matchesExpected = expected ? smimeaAnswers.some((answer) => {
     const parsed = parseSmimeaContent(answer);
     return parsed && parsed.usage === expected.usage && parsed.selector === expected.selector && parsed.matchingType === expected.matchingType && parsed.hex === expected.hex;
-  }));
+  }) : smimeaAnswers.length > 0;
   const ok = json.Status === 0 && smimeaAnswers.length > 0 && matchesExpected;
   return {
     ok,
@@ -35,11 +35,11 @@ export function parseDohResponse(json: DoHResponse, expectedContent: string): Om
     ttl: answers.find((answer) => answer.type === SMIMEA_TYPE)?.TTL,
     answers: smimeaAnswers,
     matchesExpected,
-    message: ok ? 'Record gefunden und exakt passend.' : smimeaAnswers.length ? 'SMIMEA Record gefunden, aber Inhalt weicht ab.' : 'Kein SMIMEA Record in der Antwort gefunden.',
+    message: ok ? (expected ? 'Record gefunden und exakt passend.' : 'SMIMEA Record gefunden.') : smimeaAnswers.length ? 'SMIMEA Record gefunden, aber Inhalt weicht ab.' : 'Kein SMIMEA Record in der Antwort gefunden.',
   };
 }
 
-async function query(url: string, resolver: ResolverCheck['resolver'], expectedContent: string): Promise<ResolverCheck> {
+async function query(url: string, resolver: ResolverCheck['resolver'], expectedContent = ''): Promise<ResolverCheck> {
   try {
     const response = await fetch(url, { headers: { Accept: 'application/dns-json' } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -49,7 +49,7 @@ async function query(url: string, resolver: ResolverCheck['resolver'], expectedC
   }
 }
 
-export async function checkDns(fqdn: string, expectedContent: string): Promise<ResolverCheck[]> {
+export async function checkDns(fqdn: string, expectedContent = ''): Promise<ResolverCheck[]> {
   const name = encodeURIComponent(fqdn.replace(/\.$/, ''));
   return Promise.all([
     query(`https://cloudflare-dns.com/dns-query?name=${name}&type=SMIMEA&do=1`, 'Cloudflare', expectedContent),

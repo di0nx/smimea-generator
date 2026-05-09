@@ -38,13 +38,13 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 E-Mail:
 
 ```text
-dion@kitsos.net
+<selected-email>
 ```
 
-Erwarteter SMIMEA Owner Name:
+SMIMEA Owner Name Schema:
 
 ```text
-d55bcf8025bdb22b72cf95c0306748d814c0effe3859bddc00d2b1aa._smimecert.kitsos.net
+<56-hex-localpart-hash>._smimecert.example.org
 ```
 
 Default Record:
@@ -69,7 +69,7 @@ npm test
 npm run build
 ```
 
-Der statische Produktions-Build liegt danach in `dist/`. Die Vite-Konfiguration nutzt relative Asset-URLs, damit die Seite auch unter GitHub-Pages-Projektpfaden wie `/smimea-generator/` nicht leer bleibt.
+Der statische Produktions-Build liegt danach in `dist/`. Die Vite-Konfiguration nutzt relative Asset-URLs, damit die Seite auch unter GitHub-Pages-Projektpfaden nicht leer bleibt.
 
 ## Statisch deployen
 
@@ -83,9 +83,16 @@ Die App ist für statische Hoster geeignet. Wichtig: Deploye den kompletten Inha
 
 ### Cloudflare Pages
 
-- Framework preset: `Vite`
+Wenn du das Git-Repository verbindest, muss Cloudflare Pages am Ende `dist/` ausliefern. Das Repository enthält eine `wrangler.toml` mit `pages_build_output_dir = "./dist"`; deshalb kann Cloudflare auch dann deployen, wenn kein Build Command gesetzt ist, weil der aktuelle `dist/`-Build eingecheckt ist.
+
+Empfohlen ist trotzdem, Cloudflare Pages so zu konfigurieren, dass bei jedem Git-Deploy neu gebaut wird:
+
+- Framework preset: `Vite` oder `React (Vite)`
 - Build command: `npm run build`
-- Output directory: `dist`
+- Build output directory: `dist`
+- Root directory: leer lassen / Repository root
+
+Falls im Build-Log `No build command specified. Skipping build step.` steht, ist das nicht fatal, solange `dist/` im Repository vorhanden ist. Wenn weiterhin nur „SMIMEA Generator lädt…“ erscheint, wird die Quell-`index.html` aus der Repository-Wurzel statt `dist/index.html` ausgeliefert; prüfe dann das Pages-Ausgabeverzeichnis und deploye erneut.
 
 ### Netlify
 
@@ -94,7 +101,7 @@ Die App ist für statische Hoster geeignet. Wichtig: Deploye den kompletten Inha
 
 ## Cloudflare API im Browser
 
-Die App nutzt die aktuelle Cloudflare DNS Records API für `SMIMEA` Records. Der Request enthält sowohl formatierten `content` als auch die strukturierte `data`-Form:
+Die App nutzt die Cloudflare DNS Records API für `SMIMEA` Records. Der Request enthält formatierten `content`, die strukturierte `data`-Form und eine automatisch gesetzte Notiz mit der ausgewählten E-Mail-Adresse:
 
 ```json
 {
@@ -107,7 +114,8 @@ Die App nutzt die aktuelle Cloudflare DNS Records API für `SMIMEA` Records. Der
     "selector": 0,
     "matching_type": 0,
     "certificate": "..."
-  }
+  },
+  "comment": "SMIMEA for <selected-email>"
 }
 ```
 
@@ -119,6 +127,15 @@ Falls Cloudflare API Requests im Browser durch CORS oder Browser-Richtlinien blo
 4. Typ `SMIMEA` wählen.
 5. Name und Content aus der App übernehmen.
 6. TTL setzen und speichern.
+
+## Check-Modus
+
+Der Check-Modus kann zwei Wege nutzen:
+
+- Mit hochgeladenem Zertifikat: SAN-Adressen auswählen, Records erzeugen und anschließend DNS prüfen.
+- Ohne Zertifikat: FQDN eintragen und optional erwarteten SMIMEA Content für einen exakten Vergleich ergänzen.
+
+Die App fragt Cloudflare DoH und Google DoH ab, zeigt Status, TTL, AD-Flag und RRSIG-Hinweise an und markiert Abweichungen vom erwarteten Content.
 
 ## Projektstruktur
 

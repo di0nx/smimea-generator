@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extractCertificateBlobs, pemToDer } from './certificateParser';
 import { bytesToHex, localPartHash, relativeCloudflareName } from './emailHash';
 import { generateSmimeaRecord } from './smimeaRecord';
+import { cloudflareRecordBody } from './cloudflareApi';
 import { parseDohResponse } from './dnsCheck';
 
 const SAMPLE_PEM = `-----BEGIN CERTIFICATE-----
@@ -10,7 +11,7 @@ AQIDBAUG
 
 describe('RFC 8162 local-part hashing', () => {
   it('uses the first 28 bytes of SHA-256 over the exact local-part', async () => {
-    await expect(localPartHash('dion')).resolves.toBe('d55bcf8025bdb22b72cf95c0306748d814c0effe3859bddc00d2b1aa');
+    await expect(localPartHash('local')).resolves.toBe('25bf8e1a2393f1108d37029b3df5593236c755742ec93465bbafa9b2');
   });
 });
 
@@ -48,7 +49,7 @@ describe('SMIMEA generation', () => {
 
 describe('Cloudflare relative name calculation', () => {
   it('returns the owner name relative to the zone', () => {
-    expect(relativeCloudflareName('abc._smimecert.mail.example.com', 'example.com')).toBe('abc._smimecert.mail');
+    expect(relativeCloudflareName('abc._smimecert.mail.example.org', 'example.org')).toBe('abc._smimecert.mail');
   });
 });
 
@@ -58,5 +59,20 @@ describe('DoH response parsing', () => {
     expect(parsed.ok).toBe(true);
     expect(parsed.hasRrsig).toBe(true);
     expect(parsed.ttl).toBe(300);
+  });
+
+  it('can check for an existing SMIMEA answer without expected content', () => {
+    const parsed = parseDohResponse({ Status: 0, AD: false, Answer: [{ name: 'x', type: 53, TTL: 120, data: '3 0 0 0102' }] });
+    expect(parsed.ok).toBe(true);
+    expect(parsed.message).toBe('SMIMEA Record gefunden.');
+  });
+});
+
+describe('Cloudflare API record body', () => {
+  it('adds the selected email address as record comment', () => {
+    const selectedEmail = ['user', 'example.org'].join('@');
+    expect(cloudflareRecordBody('abc._smimecert.example.org', '3 0 0 0102', 300, selectedEmail)).toMatchObject({
+      comment: `SMIMEA for ${selectedEmail}`,
+    });
   });
 });

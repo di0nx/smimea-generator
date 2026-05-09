@@ -15,8 +15,10 @@
         <h1>SMIMEA Generator lädt…</h1>
         <p>
           Falls diese Nachricht stehen bleibt, konnten die JavaScript-Assets nicht geladen werden.
-          Bitte deploye den kompletten <code>dist/</code>-Ordner inklusive <code>assets/</code> und achte darauf,
-          dass der Build mit den relativen Vite-Asset-Pfaden aus <code>vite.config.ts</code> erzeugt wurde.
+          Du siehst gerade die Quell-<code>index.html</code> statt des Vite-Builds. Stelle bei Cloudflare Pages
+          <strong>Build command</strong> auf <code>npm run build</code> und <strong>Build output directory</strong>
+          auf <code>dist</code>, oder deploye den kompletten lokal erzeugten <code>dist/</code>-Ordner inklusive
+          <code>assets/</code>.
         </p>
       </main>
     </div>
