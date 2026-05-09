@@ -83,16 +83,9 @@ Die App ist für statische Hoster geeignet. Wichtig: Deploye den kompletten Inha
 
 ### Cloudflare Pages
 
-Wenn du das Git-Repository verbindest, muss Cloudflare Pages am Ende `dist/` ausliefern. Das Repository enthält eine `wrangler.toml` mit `pages_build_output_dir = "./dist"`; deshalb kann Cloudflare auch dann deployen, wenn kein Build Command gesetzt ist, weil der aktuelle `dist/`-Build eingecheckt ist.
-
-Empfohlen ist trotzdem, Cloudflare Pages so zu konfigurieren, dass bei jedem Git-Deploy neu gebaut wird:
-
-- Framework preset: `Vite` oder `React (Vite)`
+- Framework preset: `Vite`
 - Build command: `npm run build`
-- Build output directory: `dist`
-- Root directory: leer lassen / Repository root
-
-Falls im Build-Log `No build command specified. Skipping build step.` steht, ist das jetzt nicht mehr fatal, solange `dist/` im Repository vorhanden ist. Wenn du weiterhin nur „SMIMEA Generator lädt…“ siehst, wird die Quell-`index.html` aus der Repository-Wurzel statt `dist/index.html` ausgeliefert; prüfe dann das Pages-Ausgabeverzeichnis und deploye erneut.
+- Output directory: `dist`
 
 ### Netlify
 
