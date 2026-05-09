@@ -4,24 +4,24 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 
 ## Was die App macht
 
-- lädt ein S/MIME-Zertifikat (`.pem`, `.crt`, `.cer`, `.der`, `.txt`) vollständig clientseitig im Browser
-- liest die RFC822Name/SAN-E-Mail-Adressen aus dem Zertifikat aus
-- lässt dich eine oder mehrere der gefundenen Adressen auswählen
-- berechnet für jede ausgewählte Adresse den SMIMEA Owner Name nach RFC 8162:
+- nimmt eine E-Mail-Adresse und ein S/MIME-Zertifikat entgegen (`.pem`, `.crt`, `.cer`, `.der`, `.txt`)
+- verarbeitet Zertifikat und E-Mail vollständig im Browser
+- konvertiert PEM nach DER und nutzt DER direkt, wenn bereits vorhanden
+- zeigt Zertifikatsdetails inklusive Subject, Issuer, Serial, Gültigkeit, Algorithmen, SAN/RFC822Name, Key Usage, Extended Key Usage sowie SHA-256/SHA-512 Fingerprints an
+- berechnet den SMIMEA Owner Name nach RFC 8162:
   - SHA-256 über den exakten Local-Part der E-Mail-Adresse
   - erste 28 Bytes / 56 Hex-Zeichen
   - `<hash>._smimecert.<mail-domain>`
 - erzeugt den Record Content für frei wählbare Usage-, Selector- und Matching-Type-Kombinationen
 - Default und Empfehlung für S/MIME Discovery: `3 0 0 <vollständiges DER-Zertifikat als Hex>`
-- zeigt pro Adresse FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
-- kann optional per Cloudflare API Records erstellen, aktualisieren oder löschen/neu erstellen
-- setzt beim Cloudflare-API-Body automatisch eine Record-Notiz im Format `SMIMEA for <email>`
-- enthält einen Check-Modus für bereits vorhandene Records und prüft per DNS-over-HTTPS bei Cloudflare und Google, ob der Record veröffentlicht wurde und exakt passt
+- zeigt FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
+- kann optional per Cloudflare API einen Record erstellen, aktualisieren oder löschen/neu erstellen
+- prüft per DNS-over-HTTPS bei Cloudflare und Google, ob der Record veröffentlicht wurde und exakt passt
 
 ## Security- und Datenschutz-Hinweise
 
 - Es gibt kein Backend. Die App besteht nur aus HTML, CSS und JavaScript.
-- Zertifikat und daraus gelesene E-Mail-Adressen bleiben im Browser.
+- E-Mail-Adresse und Zertifikat bleiben im Browser.
 - Keine Analytics, kein Tracking und keine Third-Party-CDNs.
 - Daten werden nicht dauerhaft gespeichert, außer du aktivierst explizit „Token lokal merken“.
 - Lokales Merken nutzt ausschließlich `localStorage` und ist sichtbar abschaltbar.
@@ -30,9 +30,10 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 - Empfohlene Cloudflare Token Permissions:
   - `Zone:Read`
   - `DNS:Edit`
+  - optional `Account:Read`, wenn du Account-Informationen in eigenen Workflows auflösen möchtest
 - Ein API Token im Browser ist sensibel. Am besten erstellst du ein Token, das nur für genau die betroffene Zone gilt.
 
-## Beispiel mit neutralen Platzhaltern
+## Beispiel
 
 E-Mail:
 
