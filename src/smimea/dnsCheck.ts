@@ -1,3 +1,4 @@
+import { hexToBytes } from './emailHash';
 import { parseSmimeaContent } from './smimeaRecord';
 
 export interface ResolverCheck {
@@ -17,6 +18,13 @@ interface DoHResponse { Status: number; AD?: boolean; Answer?: DoHAnswer[] }
 
 const SMIMEA_TYPE = 53;
 const RRSIG_TYPE = 46;
+
+
+export function certificateDerFromSmimeaAnswer(content: string): Uint8Array | null {
+  const parsed = parseSmimeaContent(content);
+  if (!parsed || parsed.selector !== 0 || parsed.matchingType !== 0) return null;
+  return hexToBytes(parsed.hex);
+}
 
 export function parseDohResponse(json: DoHResponse, expectedContent = ''): Omit<ResolverCheck, 'resolver'> {
   const answers = json.Answer ?? [];

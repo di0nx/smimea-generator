@@ -4,24 +4,24 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 
 ## Was die App macht
 
-- nimmt eine E-Mail-Adresse und ein S/MIME-Zertifikat entgegen (`.pem`, `.crt`, `.cer`, `.der`, `.txt`)
-- verarbeitet Zertifikat und E-Mail vollständig im Browser
-- konvertiert PEM nach DER und nutzt DER direkt, wenn bereits vorhanden
-- zeigt Zertifikatsdetails inklusive Subject, Issuer, Serial, Gültigkeit, Algorithmen, SAN/RFC822Name, Key Usage, Extended Key Usage sowie SHA-256/SHA-512 Fingerprints an
-- berechnet den SMIMEA Owner Name nach RFC 8162:
+- lädt ein S/MIME-Zertifikat (`.pem`, `.crt`, `.cer`, `.der`, `.txt`) vollständig clientseitig im Browser
+- liest die RFC822Name/SAN-E-Mail-Adressen aus dem Zertifikat aus
+- lässt dich eine oder mehrere der gefundenen Adressen auswählen
+- berechnet für jede ausgewählte Adresse den SMIMEA Owner Name nach RFC 8162:
   - SHA-256 über den exakten Local-Part der E-Mail-Adresse
   - erste 28 Bytes / 56 Hex-Zeichen
   - `<hash>._smimecert.<mail-domain>`
 - erzeugt den Record Content für frei wählbare Usage-, Selector- und Matching-Type-Kombinationen
 - Default und Empfehlung für S/MIME Discovery: `3 0 0 <vollständiges DER-Zertifikat als Hex>`
-- zeigt FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
-- kann optional per Cloudflare API einen Record erstellen, aktualisieren oder löschen/neu erstellen
-- prüft per DNS-over-HTTPS bei Cloudflare und Google, ob der Record veröffentlicht wurde und exakt passt
+- zeigt pro Adresse FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
+- kann optional per Cloudflare API Records erstellen, aktualisieren oder löschen/neu erstellen
+- setzt beim Cloudflare-API-Body automatisch eine Record-Notiz im Format `SMIMEA for <email>`
+- enthält einen über das Menü aufrufbaren Check-Modus: Nur E-Mail-Adresse eingeben, Owner Name berechnen, vorhandenen SMIMEA Record per DNS-over-HTTPS abrufen und bei `3 0 0` das veröffentlichte Zertifikat anzeigen
 
 ## Security- und Datenschutz-Hinweise
 
 - Es gibt kein Backend. Die App besteht nur aus HTML, CSS und JavaScript.
-- E-Mail-Adresse und Zertifikat bleiben im Browser.
+- Zertifikat und daraus gelesene E-Mail-Adressen bleiben im Browser.
 - Keine Analytics, kein Tracking und keine Third-Party-CDNs.
 - Daten werden nicht dauerhaft gespeichert, außer du aktivierst explizit „Token lokal merken“.
 - Lokales Merken nutzt ausschließlich `localStorage` und ist sichtbar abschaltbar.
@@ -30,10 +30,9 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 - Empfohlene Cloudflare Token Permissions:
   - `Zone:Read`
   - `DNS:Edit`
-  - optional `Account:Read`, wenn du Account-Informationen in eigenen Workflows auflösen möchtest
 - Ein API Token im Browser ist sensibel. Am besten erstellst du ein Token, das nur für genau die betroffene Zone gilt.
 
-## Beispiel
+## Beispiel mit neutralen Platzhaltern
 
 E-Mail:
 
@@ -119,7 +118,7 @@ Die App nutzt die Cloudflare DNS Records API für `SMIMEA` Records. Der Request 
 }
 ```
 
-Falls Cloudflare API Requests im Browser durch CORS oder Browser-Richtlinien blockiert werden, zeigt die App eine verständliche Fehlermeldung und generiert einen `curl`-Befehl. Führe diesen lokal in einem Terminal aus oder lege den Record manuell im Cloudflare Dashboard an:
+Cloudflare blockiert direkte API-Aufrufe aus Browsern häufig per CORS. Deshalb erzeugt die App immer ausführbare `curl`-Befehle und versucht den Browser-API-Aufruf nur, wenn du die entsprechende Checkbox aktivierst. Führe den `curl`-Befehl lokal in einem Terminal aus oder lege den Record manuell im Cloudflare Dashboard an:
 
 1. Cloudflare Dashboard öffnen.
 2. Zone auswählen.
@@ -130,12 +129,11 @@ Falls Cloudflare API Requests im Browser durch CORS oder Browser-Richtlinien blo
 
 ## Check-Modus
 
-Der Check-Modus kann zwei Wege nutzen:
+Der Check-Modus ist über das Menü erreichbar und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record.
 
-- Mit hochgeladenem Zertifikat: SAN-Adressen auswählen, Records erzeugen und anschließend DNS prüfen.
-- Ohne Zertifikat: FQDN eintragen und optional erwarteten SMIMEA Content für einen exakten Vergleich ergänzen.
+Wenn der veröffentlichte Record das vollständige Zertifikat enthält (Selector `0`, Matching Type `0`, typischerweise `3 0 0`), dekodiert die App die DER-Daten direkt aus DNS und zeigt Subject, Issuer, SAN-Adressen, Gültigkeit und Fingerprints des Zertifikats an. Bei Hash-basierten Records (`3 0 1`, `3 0 2` oder Selector `1`) kann aus DNS kein vollständiges Zertifikat rekonstruiert werden; die App weist dann darauf hin.
 
-Die App fragt Cloudflare DoH und Google DoH ab, zeigt Status, TTL, AD-Flag und RRSIG-Hinweise an und markiert Abweichungen vom erwarteten Content.
+Optional kannst du weiterhin einen FQDN manuell eintragen oder erwarteten SMIMEA Content für einen exakten Vergleich ergänzen. Die App zeigt Status, TTL, AD-Flag und RRSIG-Hinweise an und markiert Abweichungen vom erwarteten Content.
 
 ## Projektstruktur
 

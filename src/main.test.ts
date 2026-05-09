@@ -10,7 +10,8 @@ describe('application shell', () => {
 
     expect(document.querySelector('h1')?.textContent).toBe('SMIMEA DNS Record Generator');
     expect(document.querySelector<HTMLInputElement>('#cert')).not.toBeNull();
-    expect(document.querySelector<HTMLInputElement>('#checkFqdn')?.placeholder).toContain('example.org');
+    expect(document.querySelector<HTMLAnchorElement>('a[href="#check"]')).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>('#checkEmail')?.placeholder).toContain('email-address');
     expect(document.querySelector<HTMLButtonElement>('#generate')?.textContent).toContain('ausgewählte Adressen');
   });
 });

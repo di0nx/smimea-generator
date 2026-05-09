@@ -3,7 +3,7 @@ import { extractCertificateBlobs, pemToDer } from './certificateParser';
 import { bytesToHex, localPartHash, relativeCloudflareName } from './emailHash';
 import { generateSmimeaRecord } from './smimeaRecord';
 import { cloudflareRecordBody } from './cloudflareApi';
-import { parseDohResponse } from './dnsCheck';
+import { certificateDerFromSmimeaAnswer, parseDohResponse } from './dnsCheck';
 
 const SAMPLE_PEM = `-----BEGIN CERTIFICATE-----
 AQIDBAUG
@@ -65,6 +65,11 @@ describe('DoH response parsing', () => {
     const parsed = parseDohResponse({ Status: 0, AD: false, Answer: [{ name: 'x', type: 53, TTL: 120, data: '3 0 0 0102' }] });
     expect(parsed.ok).toBe(true);
     expect(parsed.message).toBe('SMIMEA Record gefunden.');
+  });
+
+  it('extracts DER bytes from full-certificate SMIMEA answers only', () => {
+    expect(bytesToHex(certificateDerFromSmimeaAnswer('3 0 0 0102')!)).toBe('0102');
+    expect(certificateDerFromSmimeaAnswer('3 0 1 0102')).toBeNull();
   });
 });
 
