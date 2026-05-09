@@ -83,14 +83,9 @@ Die App ist für statische Hoster geeignet. Wichtig: Deploye den kompletten Inha
 
 ### Cloudflare Pages
 
-Wenn du das Git-Repository verbindest, darf Cloudflare Pages nicht die Repository-Wurzel direkt ausliefern. Es muss zuerst Vite bauen und anschließend `dist/` deployen. Stelle in Cloudflare Pages ein:
-
-- Framework preset: `Vite` oder `React (Vite)`
+- Framework preset: `Vite`
 - Build command: `npm run build`
-- Build output directory: `dist`
-- Root directory: leer lassen / Repository root
-
-Das Repository enthält zusätzlich eine `wrangler.toml` mit `pages_build_output_dir = "./dist"`, damit Wrangler-/Pages-Deployments das richtige Ausgabeverzeichnis kennen. Wenn du weiterhin nur „SMIMEA Generator lädt…“ siehst, wird sehr wahrscheinlich noch die Quell-`index.html` aus der Repository-Wurzel statt `dist/index.html` ausgeliefert.
+- Output directory: `dist`
 
 ### Netlify
 
