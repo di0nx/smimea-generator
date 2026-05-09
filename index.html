@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Clientseitiger SMIMEA DNS Record Generator für S/MIME-Zertifikate mit optionaler Cloudflare- und DNS-over-HTTPS-Prüfung."
+    />
     <title>SMIMEA Generator</title>
   </head>
   <body>
@@ -11,7 +15,8 @@
         <h1>SMIMEA Generator lädt…</h1>
         <p>
           Falls diese Nachricht stehen bleibt, konnten die JavaScript-Assets nicht geladen werden.
-          Bitte prüfe, ob der statische Build inklusive <code>assets/</code>-Ordner deployed wurde.
+          Bitte deploye den kompletten <code>dist/</code>-Ordner inklusive <code>assets/</code> und achte darauf,
+          dass der Build mit den relativen Vite-Asset-Pfaden aus <code>vite.config.ts</code> erzeugt wurde.
         </p>
       </main>
     </div>
