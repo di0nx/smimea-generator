@@ -69,11 +69,11 @@ npm test
 npm run build
 ```
 
-Der statische Produktions-Build liegt danach in `dist/`.
+Der statische Produktions-Build liegt danach in `dist/`. Die Vite-Konfiguration nutzt relative Asset-URLs, damit die Seite auch unter GitHub-Pages-Projektpfaden wie `/smimea-generator/` nicht leer bleibt.
 
 ## Statisch deployen
 
-Die App ist für statische Hoster geeignet:
+Die App ist für statische Hoster geeignet. Wichtig: Deploye den kompletten Inhalt von `dist/`, inklusive `dist/assets/`. Das gebaute `index.html` verweist absichtlich mit relativen Pfaden auf `./assets/...`, damit Deployments in Unterpfaden nicht leer bleiben.
 
 ### GitHub Pages
 
