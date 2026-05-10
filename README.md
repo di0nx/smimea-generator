@@ -101,11 +101,11 @@ Falls im Build-Log `No build command specified. Skipping build step.` steht, ist
 
 ## UI-Aufbau
 
-Die App ist als helles, minimalistisches Dashboard mit getrennten Seiten aufgebaut:
+Die App ist als helles, minimalistisches Dashboard mit echten Pfad-Seiten aufgebaut. Für statische Hoster liegt eine `_redirects`-Datei bei, damit direkte Aufrufe wie `/check` auf die SPA zurückfallen:
 
-- `#/check`: separate Seite zum Prüfen bereits vorhandener Records und zum Herunterladen veröffentlichter Full-Certificate-Zertifikate.
-- `#/generator`: Zertifikat hochladen, SAN-Adressen auswählen und SMIMEA Records erzeugen.
-- `#/publish`: Cloudflare-Veröffentlichung und curl-Fallback.
+- `/check`: separate Seite zum Prüfen bereits vorhandener Records und zum Herunterladen veröffentlichter Full-Certificate-Zertifikate.
+- `/generator`: Zertifikat hochladen, SAN-Adressen auswählen und SMIMEA Records erzeugen.
+- `/publish`: Cloudflare-Veröffentlichung und curl-Fallback.
 
 Längere Erklärungen und Detailausgaben sind bewusst in aufklappbaren Bereichen (`details`/`summary`) untergebracht, damit die Oberfläche übersichtlich bleibt.
 
@@ -142,7 +142,7 @@ Die Function speichert keine Tokens und schreibt sie nicht in Logs; das Token wi
 
 ## Check-Modus
 
-Die Check-Funktion ist eine eigene Seite in der App (`#/check`) und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record. Google wird über den RFC-8484-Endpunkt `https://dns.google/dns-query` mit `application/dns-message` abgefragt, nicht über `/resolve`.
+Die Check-Funktion ist eine eigene Seite in der App (`/check`) und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record. Google wird über den RFC-8484-Endpunkt `https://dns.google/dns-query` mit `application/dns-message` abgefragt, nicht über `/resolve`.
 
 Wenn der veröffentlichte Record das vollständige Zertifikat enthält (Selector `0`, Matching Type `0`, typischerweise `3 0 0`), dekodiert die App die DER-Daten direkt aus DNS, zeigt Subject, Issuer, SAN-Adressen, Gültigkeit und Fingerprints an und bietet einen Download als `.der`-Zertifikat an. Bei Hash-basierten Records (`3 0 1`, `3 0 2` oder Selector `1`) kann aus DNS kein vollständiges Zertifikat rekonstruiert werden; die App weist dann darauf hin.
 

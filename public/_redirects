@@ -1,0 +1,6 @@
+/check/ /check 301
+/generator/ /generator 301
+/publish/ /publish 301
+/check /index.html 200
+/generator /index.html 200
+/publish /index.html 200

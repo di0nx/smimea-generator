@@ -31,7 +31,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: .9rem min(5vw, 4rem);
+  padding: .65rem min(5vw, 4rem);
   background: rgb(247 247 244 / 88%);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(16px);
@@ -67,10 +67,10 @@ body {
 }
 .nav a:hover, .nav a.active { background: var(--accent-soft); color: var(--accent); }
 
-main { padding: 2rem min(5vw, 4rem) 4rem; }
+main { padding: 1rem min(5vw, 4rem) 3rem; }
 .page { max-width: 1120px; margin: 0 auto; }
 .page[hidden] { display: none; }
-.page-head { margin: 2rem 0; max-width: 760px; }
+.page-head { margin: .75rem 0 1rem; max-width: 720px; }
 .kicker, .step {
   margin: 0 0 .45rem;
   color: var(--accent);
@@ -79,9 +79,9 @@ main { padding: 2rem min(5vw, 4rem) 4rem; }
   text-transform: uppercase;
   font-size: .78rem;
 }
-h1 { margin: 0; font-size: clamp(2.3rem, 7vw, 5.2rem); line-height: .95; letter-spacing: -.055em; }
+h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.7rem); line-height: 1; letter-spacing: -.045em; }
 h2 { margin: 0 0 1rem; letter-spacing: -.02em; }
-.lede { color: var(--muted); font-size: 1.08rem; line-height: 1.65; }
+.lede { color: var(--muted); font-size: 1rem; line-height: 1.55; margin: .8rem 0; }
 
 .card, .result, .resolver {
   background: var(--card);
@@ -89,6 +89,7 @@ h2 { margin: 0 0 1rem; letter-spacing: -.02em; }
   border-radius: 24px;
   padding: 1.2rem;
   box-shadow: var(--shadow);
+  margin-bottom: 1rem;
 }
 .primary-card { border-color: #c7d7fe; }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: 1rem; }

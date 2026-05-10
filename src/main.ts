@@ -26,11 +26,11 @@ const state: AppState = { records: [] };
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
 <header class="app-header">
-  <a class="brand" href="#/generator" aria-label="SMIMEA Generator"><span class="brand-mark">S</span><span><b>SMIMEA</b><small>Generator & Check</small></span></a>
+  <a class="brand" href="/generator" aria-label="SMIMEA Generator"><span class="brand-mark">S</span><span><b>SMIMEA</b><small>Generator & Check</small></span></a>
   <nav class="nav" aria-label="Hauptnavigation">
-    <a href="#/check" data-route-link="check">Record Check</a>
-    <a href="#/generator" data-route-link="generator">Generator</a>
-    <a href="#/publish" data-route-link="publish">Cloudflare</a>
+    <a href="/check" data-route-link="check">Record Check</a>
+    <a href="/generator" data-route-link="generator">Generator</a>
+    <a href="/publish" data-route-link="publish">Cloudflare</a>
   </nav>
 </header>
 <main>
@@ -91,10 +91,20 @@ function yesNo(value: boolean) { return value ? 'Ja' : 'Nein'; }
 function selectedEmails(): string[] { return [...document.querySelectorAll<HTMLInputElement>('[name="sanEmail"]:checked')].map((input) => input.value); }
 function defaultZoneFor(email: string): string { return zone.value.trim() || splitEmailAddress(email).domain; }
 
-function route(): 'check' | 'generator' | 'publish' {
-  const current = location.hash.replace(/^#\/?/, '');
-  if (current === 'check' || current === 'publish') return current;
+type Route = 'check' | 'generator' | 'publish';
+const routes: Route[] = ['check', 'generator', 'publish'];
+
+function route(): Route {
+  const segment = location.pathname.replace(/\/+$/, '').split('/').filter(Boolean).pop();
+  if (segment && routes.includes(segment as Route)) return segment as Route;
   return 'generator';
+}
+
+function routePath(target: Route): string { return `/${target}`; }
+
+function navigate(target: Route) {
+  history.pushState({}, '', routePath(target));
+  renderRoute();
 }
 
 function renderRoute() {
@@ -264,7 +274,15 @@ $('cfRun').addEventListener('click', async () => {
 });
 
 $('dnsRun').addEventListener('click', () => checkRecordByEmailOrFqdn().catch((e) => toast(e.message)));
-window.addEventListener('hashchange', renderRoute);
+document.querySelectorAll<HTMLAnchorElement>('[data-route-link]').forEach((link) => link.addEventListener('click', (event) => {
+  event.preventDefault();
+  navigate(link.dataset.routeLink as Route);
+}));
+document.querySelector<HTMLAnchorElement>('.brand')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  navigate('generator');
+});
+window.addEventListener('popstate', renderRoute);
 
 function renderResolver(r: ResolverCheck) { return `<div class="resolver ${r.ok ? 'ok' : 'bad'}"><h3>${r.resolver}</h3><p>${escapeHtml(r.message)}</p><p>Status: ${r.status ?? '–'} · TTL: ${r.ttl ?? '–'} · AD: ${yesNo(r.ad)} · RRSIG: ${yesNo(r.hasRrsig)}</p>${!r.ad && r.answers.length ? '<p class="warn">Record gefunden, aber DNSSEC-validierte Antwort nicht bestätigt.</p>' : ''}<pre>${escapeHtml(r.answers.join('\n') || 'Keine Antwort')}</pre></div>`; }
 
