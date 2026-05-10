@@ -17,6 +17,7 @@ interface GeneratedRecord {
 interface AppState {
   cert?: ParsedCertificate;
   checkedCert?: ParsedCertificate;
+  checkedCertDer?: Uint8Array;
   records: GeneratedRecord[];
 }
 
@@ -24,45 +25,58 @@ const state: AppState = { records: [] };
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-<header class="topbar" id="top">
-  <a class="brand" href="#top"><span class="logo">SM</span><span><b>SMIMEA Generator</b><small>RFC 8162 · clientseitig</small></span></a>
-  <nav class="menu"><a href="#check">Check</a><a href="#generate-flow">Generator</a><a href="#cloudflare">Cloudflare</a><a href="#outputs-card">Output</a></nav>
-  <button id="theme" class="ghost">🌙/☀️</button>
+<header class="app-header">
+  <a class="brand" href="#/generator" aria-label="SMIMEA Generator"><span class="brand-mark">S</span><span><b>SMIMEA</b><small>Generator & Check</small></span></a>
+  <nav class="nav" aria-label="Hauptnavigation">
+    <a href="#/check" data-route-link="check">Record Check</a>
+    <a href="#/generator" data-route-link="generator">Generator</a>
+    <a href="#/publish" data-route-link="publish">Cloudflare</a>
+  </nav>
 </header>
-<main class="shell">
-  <section class="intro panel span">
-    <div><p class="eyebrow">S/MIME Discovery</p><h1>Prüfen, erzeugen, veröffentlichen.</h1><p>Die wichtigsten Wege sind getrennt: Im Check-Modus reicht eine E-Mail-Adresse, um bestehende SMIMEA Records und — bei <code>3 0 0</code> — das veröffentlichte Zertifikat abzurufen. Im Generator lädst du ein Zertifikat hoch und wählst SAN-Adressen aus.</p></div>
-    <div class="quick-actions"><a class="primary link-button" href="#check">Record prüfen</a><a class="secondary link-button" href="#generate-flow">Record erzeugen</a></div>
-  </section>
-
-  <aside class="panel sticky"><h2>Überblick</h2><div id="cards" class="status-grid"></div></aside>
-
-  <section class="panel focus" id="check">
-    <p class="step">Check-Modus</p><h2>Bestehenden Record prüfen</h2>
-    <p class="hint">Gib nur eine E-Mail-Adresse ein. Die App berechnet den passenden Owner Name, fragt Cloudflare und Google über DoH ab und zeigt den veröffentlichten SMIMEA Record. Vollständige Zertifikate aus <code>3 0 0</code> werden direkt dekodiert.</p>
-    <div class="form-grid"><label>E-Mail-Adresse<input id="checkEmail" placeholder="<email-address>" autocomplete="off"></label><label>Manueller FQDN (optional)<input id="checkFqdn" placeholder="<hash>._smimecert.<mail-domain>"></label><label class="wide">Erwarteter SMIMEA Content (optional)<textarea id="checkContent" placeholder="3 0 0 ..."></textarea></label></div>
-    <button id="dnsRun" class="primary">Record per E-Mail/FQDN prüfen</button>
-    <div id="checkOwner" class="output-box muted">Noch kein Check ausgeführt.</div>
+<main>
+  <section class="page" data-page="check" id="checkPage">
+    <div class="page-head">
+      <p class="kicker">Separate Check-Seite</p>
+      <h1>Record prüfen und Zertifikat herunterladen</h1>
+      <p class="lede">E-Mail-Adresse eingeben, SMIMEA Owner Name berechnen lassen und veröffentlichte Records per DNS-over-HTTPS prüfen.</p>
+      <details><summary>Was wird geprüft?</summary><p>Die App fragt Cloudflare und Google ab, vergleicht optional erwarteten Content und dekodiert bei Full-Certificate-Records (<code>3 0 0</code>) das Zertifikat direkt aus DNS. Bei Hash-Records kann kein Zertifikat rekonstruiert werden.</p></details>
+    </div>
+    <div class="card primary-card">
+      <div class="form-grid"><label>E-Mail-Adresse<input id="checkEmail" placeholder="<email-address>" autocomplete="off"></label><label>Manueller FQDN (optional)<input id="checkFqdn" placeholder="<hash>._smimecert.<mail-domain>"></label><label class="wide">Erwarteter SMIMEA Content (optional)<textarea id="checkContent" placeholder="3 0 0 ..."></textarea></label></div>
+      <button id="dnsRun" class="primary">Record prüfen</button>
+    </div>
+    <div id="checkOwner" class="result muted">Noch kein Check ausgeführt.</div>
     <div id="dnsStatus" class="resolver-grid"></div>
-    <div id="publishedCert" class="kv muted">Noch kein Zertifikat aus DNS gelesen.</div>
+    <section class="card"><h2>Zertifikat aus DNS</h2><div id="publishedCert" class="kv muted">Noch kein Zertifikat aus DNS gelesen.</div></section>
   </section>
 
-  <section class="panel" id="generate-flow">
-    <p class="step">Generator · Schritt 1</p><h2>Zertifikat hochladen</h2>
-    <div class="form-grid"><label>S/MIME-Zertifikat<input id="cert" type="file" accept=".pem,.crt,.cer,.der,.txt"></label><label>Manuelle DNS-Zone (optional)<input id="zone" placeholder="<zone-name>"></label></div>
-    <p class="hint">Nach dem Upload liest die App RFC822Name/SAN-E-Mail-Adressen aus dem Zertifikat aus.</p><div id="certWarnings"></div>
+  <section class="page" data-page="generator" id="generatorPage">
+    <div class="page-head">
+      <p class="kicker">Generator</p>
+      <h1>Aus Zertifikat Records erzeugen</h1>
+      <p class="lede">Minimaler Ablauf: Zertifikat hochladen, SAN-Adressen auswählen, Records erzeugen.</p>
+      <details><summary>Hinweise zur Empfehlung 3 0 0</summary><p>Für S/MIME Discovery ist <code>3 0 0</code> praktisch, weil das vollständige End-Entity-Zertifikat im DNS veröffentlicht wird und Sender den Public Key direkt finden können.</p></details>
+    </div>
+    <div class="split">
+      <section class="card"><p class="step">1</p><h2>Zertifikat hochladen</h2><div class="form-grid single"><label>S/MIME-Zertifikat<input id="cert" type="file" accept=".pem,.crt,.cer,.der,.txt"></label><label>DNS-Zone überschreiben (optional)<input id="zone" placeholder="<zone-name>"></label></div><div id="certWarnings"></div></section>
+      <aside class="card"><h2>Status</h2><div id="cards" class="status-grid"></div></aside>
+    </div>
+    <section class="card"><p class="step">2</p><h2>SAN-Adressen auswählen</h2><div id="emailChoices" class="choice-list muted">Nach dem Upload erscheinen hier die gefundenen E-Mail-Adressen.</div></section>
+    <section class="card"><p class="step">3</p><h2>Record-Format</h2><div class="form-grid three"><label>Usage<select id="usage"><option value="3">3 = DANE-EE</option><option value="0">0 = PKIX-TA</option><option value="1">1 = PKIX-EE</option><option value="2">2 = DANE-TA</option></select></label><label>Selector<select id="selector"><option value="0">0 = Full certificate</option><option value="1">1 = SubjectPublicKeyInfo</option></select></label><label>Matching Type<select id="matching"><option value="0">0 = Full data / no hash</option><option value="1">1 = SHA-256</option><option value="2">2 = SHA-512</option></select></label></div><button id="generate" class="primary">Records erzeugen</button></section>
+    <section class="card"><h2>Output</h2><div id="outputs" class="outputs muted">Noch keine Records erzeugt.</div></section>
+    <section class="card"><details><summary>Zertifikatsdetails anzeigen</summary><div id="certInfo" class="kv muted">Noch kein Zertifikat geladen.</div></details></section>
   </section>
 
-  <section class="panel"><p class="step">Generator · Schritt 2</p><h2>SAN-Adressen auswählen</h2><div id="emailChoices" class="choice-list muted">Nach dem Upload erscheinen hier die gefundenen E-Mail-Adressen.</div></section>
-
-  <section class="panel"><p class="step">Generator · Zertifikat</p><h2>Zertifikatsdetails</h2><div id="certInfo" class="kv muted">Noch kein Zertifikat geladen.</div></section>
-
-  <section class="panel"><p class="step">Generator · Schritt 3</p><h2>Record-Format</h2><p class="notice">Empfohlen für S/MIME Discovery: <b>3 0 0</b>, damit das vollständige Zertifikat im DNS steht.</p><div class="form-grid three"><label>Usage<select id="usage"><option value="3">3 = DANE-EE</option><option value="0">0 = PKIX-TA</option><option value="1">1 = PKIX-EE</option><option value="2">2 = DANE-TA</option></select></label><label>Selector<select id="selector"><option value="0">0 = Full certificate</option><option value="1">1 = SubjectPublicKeyInfo</option></select></label><label>Matching Type<select id="matching"><option value="0">0 = Full data / no hash</option><option value="1">1 = SHA-256</option><option value="2">2 = SHA-512</option></select></label></div><button id="generate" class="primary">Records für ausgewählte Adressen erzeugen</button></section>
-
-  <section class="panel span" id="outputs-card"><p class="step">Output</p><h2>Erzeugte Records</h2><div id="outputs" class="outputs muted">Noch keine Records erzeugt.</div></section>
-
-  <section class="panel span" id="cloudflare"><p class="step">Veröffentlichen</p><h2>Cloudflare API oder curl</h2><p class="hint">Auf Cloudflare Pages nutzt die App standardmäßig die mitgelieferte Pages Function <code>/api/cloudflare-dns</code>. Dadurch funktioniert der API-Aufruf trotz Cloudflare-CORS-Limits. Auf anderen Hostern kannst du den curl-Befehl verwenden oder den direkten Browser-Aufruf testen.</p><div class="form-grid three"><label>API Token<input id="cfToken" type="password" autocomplete="off"></label><label>Zone Name<input id="cfZone" placeholder="<zone-name>"></label><label>Zone ID (optional)<input id="cfZoneId"></label><label>TTL<input id="ttl" type="number" min="60" value="300"></label><label>Modus<select id="mode"><option value="upsert">Upsert / create or update</option><option value="create">Create only</option><option value="recreate">Delete and recreate</option></select></label><label>Transport<select id="cfTransport"><option value="proxy">Cloudflare Pages Function</option><option value="direct">Direkt aus dem Browser (CORS-riskant)</option></select></label></div><label class="check"><input id="remember" type="checkbox"> Token lokal merken (localStorage) — unsicherer als Session</label><button id="cfRun" class="primary">Bei Cloudflare ausführen</button><pre id="cfStatus"></pre><details open><summary>curl-Fallback</summary><pre id="curl"></pre><p>Die API-Notiz wird automatisch als <code>SMIMEA for &lt;selected-email&gt;</code> gesetzt.</p></details></section>
-</main><div id="toast" class="toast"></div>`
+  <section class="page" data-page="publish" id="publishPage">
+    <div class="page-head">
+      <p class="kicker">Cloudflare</p>
+      <h1>Records veröffentlichen</h1>
+      <p class="lede">Erzeuge zuerst Records im Generator. Danach kannst du sie via Cloudflare Pages Function veröffentlichen oder den curl-Fallback nutzen.</p>
+      <details><summary>Warum gibt es einen Proxy?</summary><p>Direkte Browser-Aufrufe an die Cloudflare API können durch CORS blockiert werden. Auf Cloudflare Pages nutzt diese App deshalb die Same-Origin Function <code>/api/cloudflare-dns</code>. Tokens werden nicht hardcodiert und nur für den aktuellen Request verwendet.</p></details>
+    </div>
+    <section class="card"><div class="form-grid three"><label>API Token<input id="cfToken" type="password" autocomplete="off"></label><label>Zone Name<input id="cfZone" placeholder="<zone-name>"></label><label>Zone ID (optional)<input id="cfZoneId"></label><label>TTL<input id="ttl" type="number" min="60" value="300"></label><label>Modus<select id="mode"><option value="upsert">Upsert / create or update</option><option value="create">Create only</option><option value="recreate">Delete and recreate</option></select></label><label>Transport<select id="cfTransport"><option value="proxy">Cloudflare Pages Function</option><option value="direct">Direkt aus dem Browser (CORS-riskant)</option></select></label></div><label class="check"><input id="remember" type="checkbox"> Token lokal merken (localStorage)</label><button id="cfRun" class="primary">Bei Cloudflare ausführen</button><pre id="cfStatus"></pre><details open><summary>curl-Fallback und manuelle Anlage</summary><pre id="curl">Noch keine Records erzeugt.</pre><p>Die API-Notiz wird automatisch als <code>SMIMEA for &lt;selected-email&gt;</code> gesetzt.</p></details></section>
+  </section>
+</main><div id="toast" class="toast"></div>`;
 
 const $ = <T extends HTMLElement>(id: string) => document.querySelector<T>(`#${id}`)!;
 const zone = $('zone') as HTMLInputElement;
@@ -73,9 +87,21 @@ const matching = $('matching') as HTMLSelectElement;
 
 function toast(msg: string) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
 function escapeHtml(s: string) { return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!)); }
-function yesNo(value: boolean) { return value ? '✅ Ja' : '⚠️ Nein'; }
+function yesNo(value: boolean) { return value ? 'Ja' : 'Nein'; }
 function selectedEmails(): string[] { return [...document.querySelectorAll<HTMLInputElement>('[name="sanEmail"]:checked')].map((input) => input.value); }
 function defaultZoneFor(email: string): string { return zone.value.trim() || splitEmailAddress(email).domain; }
+
+function route(): 'check' | 'generator' | 'publish' {
+  const current = location.hash.replace(/^#\/?/, '');
+  if (current === 'check' || current === 'publish') return current;
+  return 'generator';
+}
+
+function renderRoute() {
+  const active = route();
+  document.querySelectorAll<HTMLElement>('[data-page]').forEach((page) => page.hidden = page.dataset.page !== active);
+  document.querySelectorAll<HTMLAnchorElement>('[data-route-link]').forEach((link) => link.classList.toggle('active', link.dataset.routeLink === active));
+}
 
 function certDetails(c: ParsedCertificate): string {
   return `<b>Subject</b><pre>${escapeHtml(c.subject)}</pre><b>Issuer</b><pre>${escapeHtml(c.issuer)}</pre><b>Serial</b><span>${escapeHtml(c.serialNumber)}</span><b>Gültig</b><span>${c.notBefore.toLocaleString()} – ${c.notAfter.toLocaleString()}</span><b>Public Key</b><span>${escapeHtml(c.publicKeyAlgorithm)}</span><b>Signatur</b><span>${escapeHtml(c.signatureAlgorithm)}</span><b>SAN RFC822Name</b><span>${escapeHtml(c.emails.join(', ') || 'Keine gefunden')}</span><b>Key Usage</b><span>${escapeHtml(c.keyUsage.join(', ') || '–')}</span><b>Extended Key Usage</b><span>${escapeHtml(c.extendedKeyUsage.join(', ') || '–')}</span><b>SHA-256</b><code>${c.sha256Fingerprint}</code><b>SHA-512</b><code>${c.sha512Fingerprint}</code>`;
@@ -84,13 +110,13 @@ function certDetails(c: ParsedCertificate): string {
 function renderStatus() {
   const certOk = Boolean(state.cert && state.cert.notAfter > new Date() && state.cert.notBefore < new Date());
   $('cards').innerHTML = [
-    ['Zertifikat geladen', state.cert ? '✅ Ja' : '–'],
-    ['Zertifikat zeitlich gültig', state.cert ? yesNo(certOk) : '–'],
-    ['SAN E-Mail-Adressen', state.cert ? String(state.cert.emails.length) : '–'],
+    ['Zertifikat', state.cert ? 'geladen' : 'offen'],
+    ['Zeitlich gültig', state.cert ? yesNo(certOk) : '–'],
+    ['SAN-Adressen', state.cert ? String(state.cert.emails.length) : '–'],
     ['Ausgewählt', String(selectedEmails().length)],
-    ['Records erzeugt', state.records.length ? `✅ ${state.records.length}` : '–'],
-    ['DNS-Zertifikat gelesen', state.checkedCert ? '✅ Ja' : '–'],
-  ].map(([a,b]) => `<div class="status"><b>${a}</b><span>${escapeHtml(b)}</span></div>`).join('');
+    ['Records', state.records.length ? String(state.records.length) : '–'],
+    ['DNS-Zertifikat', state.checkedCert ? 'gelesen' : '–'],
+  ].map(([a,b]) => `<div class="status"><span>${escapeHtml(b)}</span><small>${escapeHtml(a)}</small></div>`).join('');
 }
 
 function renderCert() {
@@ -122,7 +148,7 @@ async function generate() {
 }
 
 function recordBlock(record: GeneratedRecord, index: number): string {
-  return `<details class="record" open><summary>${escapeHtml(record.email)}</summary><label>Vollständiger FQDN<textarea id="fqdn-${index}" readonly>${escapeHtml(record.fqdn)}</textarea><button data-copy="fqdn-${index}">Copy FQDN</button></label><label>Cloudflare Name relativ zur Zone<textarea id="cfName-${index}" readonly>${escapeHtml(record.cfName)}</textarea><button data-copy="cfName-${index}">Copy Name</button></label><label>SMIMEA Content<textarea id="content-${index}" readonly>${escapeHtml(record.content)}</textarea><button data-copy="content-${index}">Copy Content</button></label><label>dig command<textarea id="dig-${index}" readonly>${escapeHtml(record.dig)}</textarea><button data-copy="dig-${index}">Copy dig</button></label><label>Cloudflare API JSON<textarea id="apiJson-${index}" readonly>${escapeHtml(record.apiJson)}</textarea><button data-copy="apiJson-${index}">Copy JSON</button></label></details>`;
+  return `<details class="record" open><summary>${escapeHtml(record.email)}</summary><label>FQDN<textarea id="fqdn-${index}" readonly>${escapeHtml(record.fqdn)}</textarea><button data-copy="fqdn-${index}">Copy</button></label><label>Cloudflare Name<textarea id="cfName-${index}" readonly>${escapeHtml(record.cfName)}</textarea><button data-copy="cfName-${index}">Copy</button></label><label>SMIMEA Content<textarea id="content-${index}" readonly>${escapeHtml(record.content)}</textarea><button data-copy="content-${index}">Copy</button></label><details><summary>dig und Cloudflare JSON</summary><label>dig command<textarea id="dig-${index}" readonly>${escapeHtml(record.dig)}</textarea><button data-copy="dig-${index}">Copy</button></label><label>Cloudflare API JSON<textarea id="apiJson-${index}" readonly>${escapeHtml(record.apiJson)}</textarea><button data-copy="apiJson-${index}">Copy</button></label></details></details>`;
 }
 
 function renderOutputs() {
@@ -148,6 +174,15 @@ function bindCopyButtons() {
   }));
 }
 
+function downloadBytes(bytes: Uint8Array, filename: string) {
+  const url = URL.createObjectURL(new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pkix-cert' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 async function checkRecordByEmailOrFqdn() {
   const email = ($('checkEmail') as HTMLInputElement).value.trim();
   const manualFqdn = ($('checkFqdn') as HTMLInputElement).value.trim();
@@ -156,11 +191,12 @@ async function checkRecordByEmailOrFqdn() {
   if (!fqdn) throw new Error('Bitte E-Mail-Adresse oder FQDN eintragen.');
 
   $('checkOwner').classList.remove('muted');
-  $('checkOwner').innerHTML = `<b>Berechneter/zu prüfender Owner Name</b><pre>${escapeHtml(fqdn)}</pre>${email ? `<b>dig</b><pre>dig +dnssec ${escapeHtml(fqdn)} SMIMEA</pre>` : ''}`;
+  $('checkOwner').innerHTML = `<b>Owner Name</b><pre>${escapeHtml(fqdn)}</pre>${email ? `<b>dig</b><pre>dig +dnssec ${escapeHtml(fqdn)} SMIMEA</pre>` : ''}`;
   $('dnsStatus').innerHTML = 'Prüfe…';
   $('publishedCert').classList.add('muted');
   $('publishedCert').textContent = 'Noch kein Zertifikat aus DNS gelesen.';
   state.checkedCert = undefined;
+  state.checkedCertDer = undefined;
 
   const results = await checkDns(fqdn, manualContent);
   $('dnsStatus').innerHTML = `<section class="resolver"><h3>${escapeHtml(email || 'Manueller FQDN')} · ${escapeHtml(fqdn)}</h3>${results.map(renderResolver).join('')}</section>`;
@@ -174,14 +210,16 @@ async function checkRecordByEmailOrFqdn() {
   const parsed = parseSmimeaContent(firstAnswer);
   const der = certificateDerFromSmimeaAnswer(firstAnswer);
   if (!der || !parsed) {
-    $('publishedCert').innerHTML = '<p class="warn">Der veröffentlichte Record enthält nicht das vollständige Zertifikat. Ein Zertifikat kann nur aus Records mit Selector 0 und Matching Type 0 rekonstruiert werden, typischerweise <code>3 0 0</code>.</p>';
+    $('publishedCert').innerHTML = '<p class="warn">Der veröffentlichte Record enthält nicht das vollständige Zertifikat. Download ist nur für Selector 0 und Matching Type 0 möglich, typischerweise <code>3 0 0</code>.</p>';
     return;
   }
 
   try {
-    state.checkedCert = await parseCertificate(der.slice().buffer as ArrayBuffer, 'dns.der');
+    state.checkedCertDer = der.slice();
+    state.checkedCert = await parseCertificate(state.checkedCertDer.buffer as ArrayBuffer, 'dns.der');
     $('publishedCert').classList.remove('muted');
-    $('publishedCert').innerHTML = `<b>Record</b><pre>${escapeHtml(firstAnswer)}</pre><b>Hinweis</b><span>Aus DNS gelesen: Usage ${parsed.usage}, Selector ${parsed.selector}, Matching Type ${parsed.matchingType}</span>${certDetails(state.checkedCert)}`;
+    $('publishedCert').innerHTML = `<div class="download-row"><div><b>Record</b><pre>${escapeHtml(firstAnswer)}</pre></div><button id="downloadDnsCert" class="secondary">Zertifikat herunterladen (.der)</button></div><b>Hinweis</b><span>Aus DNS gelesen: Usage ${parsed.usage}, Selector ${parsed.selector}, Matching Type ${parsed.matchingType}</span>${certDetails(state.checkedCert)}`;
+    $('downloadDnsCert').addEventListener('click', () => downloadBytes(state.checkedCertDer!, 'smimea-certificate.der'));
   } catch (error) {
     $('publishedCert').innerHTML = `<p class="warn">Record gefunden, aber Zertifikat konnte nicht gelesen werden: ${escapeHtml(error instanceof Error ? error.message : 'Unbekannter Fehler')}</p>`;
   } finally {
@@ -203,7 +241,6 @@ cert.addEventListener('change', async () => {
 });
 
 $('generate').addEventListener('click', () => generate().catch((e) => toast(e.message)));
-$('theme').addEventListener('click', () => document.documentElement.classList.toggle('light'));
 $('remember').addEventListener('change', () => { const token = ($('cfToken') as HTMLInputElement).value; if (($('remember') as HTMLInputElement).checked && token) localStorage.setItem('cfToken', token); else localStorage.removeItem('cfToken'); });
 ($('cfToken') as HTMLInputElement).value = localStorage.getItem('cfToken') || '';
 
@@ -227,6 +264,9 @@ $('cfRun').addEventListener('click', async () => {
 });
 
 $('dnsRun').addEventListener('click', () => checkRecordByEmailOrFqdn().catch((e) => toast(e.message)));
+window.addEventListener('hashchange', renderRoute);
 
 function renderResolver(r: ResolverCheck) { return `<div class="resolver ${r.ok ? 'ok' : 'bad'}"><h3>${r.resolver}</h3><p>${escapeHtml(r.message)}</p><p>Status: ${r.status ?? '–'} · TTL: ${r.ttl ?? '–'} · AD: ${yesNo(r.ad)} · RRSIG: ${yesNo(r.hasRrsig)}</p>${!r.ad && r.answers.length ? '<p class="warn">Record gefunden, aber DNSSEC-validierte Antwort nicht bestätigt.</p>' : ''}<pre>${escapeHtml(r.answers.join('\n') || 'Keine Antwort')}</pre></div>`; }
+
+renderRoute();
 renderStatus();

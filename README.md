@@ -16,7 +16,7 @@ Eine clientseitige Web-App zum Erzeugen, optionalen Veröffentlichen und Prüfen
 - zeigt pro Adresse FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
 - kann optional per Cloudflare Pages Function oder per `curl` Records in Cloudflare erstellen, aktualisieren oder löschen/neu erstellen
 - setzt beim Cloudflare-API-Body automatisch eine Record-Notiz im Format `SMIMEA for <email>`
-- enthält einen über das Menü aufrufbaren Check-Modus: Nur E-Mail-Adresse eingeben, Owner Name berechnen, vorhandenen SMIMEA Record per DNS-over-HTTPS abrufen und bei `3 0 0` das veröffentlichte Zertifikat anzeigen
+- enthält eine separate Check-Seite: Nur E-Mail-Adresse eingeben, Owner Name berechnen, vorhandenen SMIMEA Record per DNS-over-HTTPS abrufen und bei `3 0 0` das veröffentlichte Zertifikat anzeigen und als `.der` herunterladen
 
 ## Security- und Datenschutz-Hinweise
 
@@ -99,6 +99,16 @@ Falls im Build-Log `No build command specified. Skipping build step.` steht, ist
 - Build command: `npm run build`
 - Publish directory: `dist`
 
+## UI-Aufbau
+
+Die App ist als helles, minimalistisches Dashboard mit getrennten Seiten aufgebaut:
+
+- `#/check`: separate Seite zum Prüfen bereits vorhandener Records und zum Herunterladen veröffentlichter Full-Certificate-Zertifikate.
+- `#/generator`: Zertifikat hochladen, SAN-Adressen auswählen und SMIMEA Records erzeugen.
+- `#/publish`: Cloudflare-Veröffentlichung und curl-Fallback.
+
+Längere Erklärungen und Detailausgaben sind bewusst in aufklappbaren Bereichen (`details`/`summary`) untergebracht, damit die Oberfläche übersichtlich bleibt.
+
 ## Cloudflare API im Browser
 
 Die App nutzt die Cloudflare DNS Records API für `SMIMEA` Records. Der Request enthält formatierten `content`, die strukturierte `data`-Form und eine automatisch gesetzte Notiz mit der ausgewählten E-Mail-Adresse:
@@ -132,9 +142,9 @@ Die Function speichert keine Tokens und schreibt sie nicht in Logs; das Token wi
 
 ## Check-Modus
 
-Der Check-Modus ist über das Menü erreichbar und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record. Google wird über den RFC-8484-Endpunkt `https://dns.google/dns-query` mit `application/dns-message` abgefragt, nicht über `/resolve`.
+Die Check-Funktion ist eine eigene Seite in der App (`#/check`) und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record. Google wird über den RFC-8484-Endpunkt `https://dns.google/dns-query` mit `application/dns-message` abgefragt, nicht über `/resolve`.
 
-Wenn der veröffentlichte Record das vollständige Zertifikat enthält (Selector `0`, Matching Type `0`, typischerweise `3 0 0`), dekodiert die App die DER-Daten direkt aus DNS und zeigt Subject, Issuer, SAN-Adressen, Gültigkeit und Fingerprints des Zertifikats an. Bei Hash-basierten Records (`3 0 1`, `3 0 2` oder Selector `1`) kann aus DNS kein vollständiges Zertifikat rekonstruiert werden; die App weist dann darauf hin.
+Wenn der veröffentlichte Record das vollständige Zertifikat enthält (Selector `0`, Matching Type `0`, typischerweise `3 0 0`), dekodiert die App die DER-Daten direkt aus DNS, zeigt Subject, Issuer, SAN-Adressen, Gültigkeit und Fingerprints an und bietet einen Download als `.der`-Zertifikat an. Bei Hash-basierten Records (`3 0 1`, `3 0 2` oder Selector `1`) kann aus DNS kein vollständiges Zertifikat rekonstruiert werden; die App weist dann darauf hin.
 
 Optional kannst du weiterhin einen FQDN manuell eintragen oder erwarteten SMIMEA Content für einen exakten Vergleich ergänzen. Die App zeigt Status, TTL, AD-Flag und RRSIG-Hinweise an und markiert Abweichungen vom erwarteten Content.
 
@@ -142,7 +152,7 @@ Optional kannst du weiterhin einen FQDN manuell eintragen oder erwarteten SMIMEA
 
 ```text
 src/
-  main.ts                  UI und App-Orchestrierung
+  main.ts                  Minimalistische Mehrseiten-UI und App-Orchestrierung
   style.css                responsives Light/Dark Dashboard
   smimea/
     emailHash.ts           RFC-8162 Local-Part-Hash und Cloudflare-relative Namen
