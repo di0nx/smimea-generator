@@ -8,9 +8,11 @@ describe('application shell', () => {
 
     await import('./main');
 
-    expect(document.querySelector('h1')?.textContent).toBe('SMIMEA DNS Record Generator');
+    expect(document.querySelector('.brand b')?.textContent).toBe('SMIMEA Generator');
+    expect(document.querySelector('h1')?.textContent).toBe('Prüfen, erzeugen, veröffentlichen.');
     expect(document.querySelector<HTMLInputElement>('#cert')).not.toBeNull();
     expect(document.querySelector<HTMLAnchorElement>('a[href="#check"]')).not.toBeNull();
+    expect(document.querySelector<HTMLSelectElement>('#cfTransport')?.value).toBe('proxy');
     expect(document.querySelector<HTMLInputElement>('#checkEmail')?.placeholder).toContain('email-address');
     expect(document.querySelector<HTMLButtonElement>('#generate')?.textContent).toContain('ausgewählte Adressen');
   });

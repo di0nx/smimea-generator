@@ -1,6 +1,6 @@
 # SMIMEA Generator
 
-Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Prüfen von SMIMEA DNS Records für S/MIME Discovery nach RFC 8162.
+Eine clientseitige Web-App zum Erzeugen, optionalen Veröffentlichen und Prüfen von SMIMEA DNS Records für S/MIME Discovery nach RFC 8162. Die Generator- und Check-Funktionen laufen im Browser; für funktionierende Cloudflare-API-Aufrufe auf Cloudflare Pages ist eine kleine Same-Origin Pages Function enthalten.
 
 ## Was die App macht
 
@@ -14,13 +14,13 @@ Eine komplett statische Web-App zum Erzeugen, optionalen Veröffentlichen und Pr
 - erzeugt den Record Content für frei wählbare Usage-, Selector- und Matching-Type-Kombinationen
 - Default und Empfehlung für S/MIME Discovery: `3 0 0 <vollständiges DER-Zertifikat als Hex>`
 - zeigt pro Adresse FQDN, Cloudflare-relativen Namen, Record Content, `dig` Command und Cloudflare API JSON an
-- kann optional per Cloudflare API Records erstellen, aktualisieren oder löschen/neu erstellen
+- kann optional per Cloudflare Pages Function oder per `curl` Records in Cloudflare erstellen, aktualisieren oder löschen/neu erstellen
 - setzt beim Cloudflare-API-Body automatisch eine Record-Notiz im Format `SMIMEA for <email>`
 - enthält einen über das Menü aufrufbaren Check-Modus: Nur E-Mail-Adresse eingeben, Owner Name berechnen, vorhandenen SMIMEA Record per DNS-over-HTTPS abrufen und bei `3 0 0` das veröffentlichte Zertifikat anzeigen
 
 ## Security- und Datenschutz-Hinweise
 
-- Es gibt kein Backend. Die App besteht nur aus HTML, CSS und JavaScript.
+- Generator, Zertifikatsverarbeitung und DNS-Check laufen im Browser. Nur der optionale Cloudflare-API-Button nutzt auf Cloudflare Pages eine Same-Origin Function als Proxy, weil Cloudflare direkte API-Aufrufe aus fremden Browser-Origins per CORS blockieren kann.
 - Zertifikat und daraus gelesene E-Mail-Adressen bleiben im Browser.
 - Keine Analytics, kein Tracking und keine Third-Party-CDNs.
 - Daten werden nicht dauerhaft gespeichert, außer du aktivierst explizit „Token lokal merken“.
@@ -89,6 +89,7 @@ Empfohlen ist trotzdem, Cloudflare Pages so zu konfigurieren, dass bei jedem Git
 - Framework preset: `Vite` oder `React (Vite)`
 - Build command: `npm run build`
 - Build output directory: `dist`
+- Functions directory: `functions` (Cloudflare erkennt diesen Ordner normalerweise automatisch)
 - Root directory: leer lassen / Repository root
 
 Falls im Build-Log `No build command specified. Skipping build step.` steht, ist das nicht fatal, solange `dist/` im Repository vorhanden ist. Wenn weiterhin nur „SMIMEA Generator lädt…“ erscheint, wird die Quell-`index.html` aus der Repository-Wurzel statt `dist/index.html` ausgeliefert; prüfe dann das Pages-Ausgabeverzeichnis und deploye erneut.
@@ -118,7 +119,9 @@ Die App nutzt die Cloudflare DNS Records API für `SMIMEA` Records. Der Request 
 }
 ```
 
-Cloudflare blockiert direkte API-Aufrufe aus Browsern häufig per CORS. Deshalb erzeugt die App immer ausführbare `curl`-Befehle und versucht den Browser-API-Aufruf nur, wenn du die entsprechende Checkbox aktivierst. Führe den `curl`-Befehl lokal in einem Terminal aus oder lege den Record manuell im Cloudflare Dashboard an:
+Cloudflare blockiert direkte API-Aufrufe aus beliebigen Browser-Origin häufig per CORS. Das Cloudflare Dashboard funktioniert, weil es eine von Cloudflare erlaubte Origin nutzt; eine statische Seite auf einer eigenen Domain hat diese Freigabe normalerweise nicht. Deshalb enthält das Repository eine Cloudflare Pages Function unter `functions/api/cloudflare-dns.ts`. Wenn die App auf Cloudflare Pages deployed ist, ruft der Browser diese Same-Origin-Function auf, und die Function leitet den Request an die Cloudflare API weiter. Auf anderen Hostern kannst du den direkten Browser-Transport testen oder den immer erzeugten `curl`-Befehl lokal ausführen.
+
+Die Function speichert keine Tokens und schreibt sie nicht in Logs; das Token wird nur für den aktuellen API-Request als `Authorization: Bearer ...` weitergereicht. Führe alternativ den `curl`-Befehl lokal in einem Terminal aus oder lege den Record manuell im Cloudflare Dashboard an:
 
 1. Cloudflare Dashboard öffnen.
 2. Zone auswählen.
@@ -129,7 +132,7 @@ Cloudflare blockiert direkte API-Aufrufe aus Browsern häufig per CORS. Deshalb 
 
 ## Check-Modus
 
-Der Check-Modus ist über das Menü erreichbar und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record.
+Der Check-Modus ist über das Menü erreichbar und funktioniert auch für Records, die vorher manuell oder mit einem anderen Tool angelegt wurden. Du kannst einfach eine E-Mail-Adresse eingeben; die App berechnet daraus den korrekten SMIMEA Owner Name (`<hash>._smimecert.<mail-domain>`), fragt Cloudflare DoH und Google DoH ab und zeigt den gefundenen Record. Google wird über den RFC-8484-Endpunkt `https://dns.google/dns-query` mit `application/dns-message` abgefragt, nicht über `/resolve`.
 
 Wenn der veröffentlichte Record das vollständige Zertifikat enthält (Selector `0`, Matching Type `0`, typischerweise `3 0 0`), dekodiert die App die DER-Daten direkt aus DNS und zeigt Subject, Issuer, SAN-Adressen, Gültigkeit und Fingerprints des Zertifikats an. Bei Hash-basierten Records (`3 0 1`, `3 0 2` oder Selector `1`) kann aus DNS kein vollständiges Zertifikat rekonstruiert werden; die App weist dann darauf hin.
 
@@ -146,6 +149,8 @@ src/
     certificateParser.ts   PEM/DER-Verarbeitung, X.509 Parsing, SPKI-Extraktion
     smimeaRecord.ts        SMIMEA Content-Erzeugung
     dnsCheck.ts            DNS-over-HTTPS Prüfung und Response Parsing
-    cloudflareApi.ts       Cloudflare API Requests und curl-Fallback
+    cloudflareApi.ts       Cloudflare API Requests über Pages Function, direkt oder curl
     smimea.test.ts         Vitest Tests
+functions/
+  api/cloudflare-dns.ts    Same-Origin Cloudflare-Pages-Proxy für DNS API
 ```

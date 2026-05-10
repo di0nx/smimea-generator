@@ -24,17 +24,45 @@ const state: AppState = { records: [] };
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-<header class="hero" id="top"><div><p class="eyebrow">RFC 8162 · S/MIME Discovery</p><h1>SMIMEA DNS Record Generator</h1><p>Zertifikat hochladen, SAN-E-Mail-Adressen auswählen und SMIMEA Records erzeugen — oder über den Check-Modus nur mit einer E-Mail-Adresse bereits veröffentlichte Records und das veröffentlichte Zertifikat abrufen.</p><nav class="menu"><a href="#generate-flow">Generator</a><a href="#check">Check-Modus</a><a href="#cloudflare">Cloudflare/curl</a></nav></div><button id="theme" class="ghost">🌙/☀️</button></header>
-<main class="grid">
-<section class="card span" id="generate-flow"><h2>1 · Zertifikat hochladen</h2><div class="form-grid"><label>S/MIME-Zertifikat<input id="cert" type="file" accept=".pem,.crt,.cer,.der,.txt"></label><label>Manuelle DNS-Zone (optional)<input id="zone" placeholder="<zone-name>"></label></div><p class="hint">Die App liest die RFC822Name/SAN-E-Mail-Adressen aus dem Zertifikat. Wähle eine oder mehrere Adressen aus, für die SMIMEA Records erstellt oder geprüft werden sollen.</p><div id="certWarnings"></div></section>
-<section class="card"><h2>Zertifikat</h2><div id="certInfo" class="kv muted">Noch kein Zertifikat geladen.</div></section>
-<section class="card"><h2>Status</h2><div id="cards" class="status-grid"></div></section>
-<section class="card span"><h2>2 · E-Mail-Adressen aus SAN auswählen</h2><div id="emailChoices" class="choice-list muted">Nach dem Upload erscheinen hier die im Zertifikat gefundenen E-Mail-Adressen.</div></section>
-<section class="card span"><h2>3 · SMIMEA Records erzeugen</h2><p class="notice">Für S/MIME Discovery ist <b>3 0 0</b> empfohlen: das vollständige End-Entity-Zertifikat wird veröffentlicht, sodass Absender den Public Key direkt finden können.</p><div class="form-grid three"><label>Usage<select id="usage"><option value="3">3 = DANE-EE</option><option value="0">0 = PKIX-TA</option><option value="1">1 = PKIX-EE</option><option value="2">2 = DANE-TA</option></select></label><label>Selector<select id="selector"><option value="0">0 = Full certificate</option><option value="1">1 = SubjectPublicKeyInfo</option></select></label><label>Matching Type<select id="matching"><option value="0">0 = Full data / no hash</option><option value="1">1 = SHA-256</option><option value="2">2 = SHA-512</option></select></label></div><button id="generate" class="primary">Records für ausgewählte Adressen erzeugen</button></section>
-<section class="card span"><h2>4 · Output</h2><div id="outputs" class="outputs muted">Noch keine Records erzeugt.</div></section>
-<section class="card" id="cloudflare"><h2>5 · Optional: Cloudflare/curl</h2><p class="warn">Cloudflare blockiert direkte DNS-API-Aufrufe aus Browsern häufig per CORS. Die App erzeugt deshalb immer ausführbare curl-Befehle. Wenn du den Browser-Aufruf trotzdem versuchst, bleibt dein Token im Browser und wird nicht geloggt.</p><div class="form-grid"><label>API Token<input id="cfToken" type="password" autocomplete="off"></label><label>Zone Name<input id="cfZone" placeholder="<zone-name>"></label><label>Zone ID (optional)<input id="cfZoneId"></label><label>TTL<input id="ttl" type="number" min="60" value="300"></label><label>Modus<select id="mode"><option value="upsert">Upsert / create or update</option><option value="create">Create only</option><option value="recreate">Delete and recreate</option></select></label></div><label class="check"><input id="remember" type="checkbox"> Token lokal merken (localStorage) — unsicherer als Session</label><label class="check"><input id="tryBrowserApi" type="checkbox"> Direkten Cloudflare-Browser-API-Aufruf versuchen (kann per CORS blockiert werden)</label><button id="cfRun" class="primary">curl erzeugen / optional Browser-API ausführen</button><pre id="cfStatus"></pre><details open><summary>Manual Mode / curl</summary><pre id="curl"></pre><p>Cloudflare Dashboard: DNS → Records → Add record → Typ SMIMEA → Name und Content aus dieser App übernehmen. Die Cloudflare API unterstützt für DNS-Records außerdem eine Notiz; die App setzt sie als <code>SMIMEA for &lt;selected-email&gt;</code>.</p></details></section>
-<section class="card" id="check"><h2>6 · Check-Modus für manuell angelegte Records</h2><p class="hint">Nur E-Mail-Adresse eingeben: Die App berechnet daraus den korrekten SMIMEA Owner Name, fragt Cloudflare und Google per DNS-over-HTTPS ab und zeigt den veröffentlichten Record. Wenn der veröffentlichte Record <code>3 0 0</code> ist, wird daraus zusätzlich das Zertifikat gelesen und angezeigt.</p><div class="form-grid"><label>E-Mail-Adresse<input id="checkEmail" placeholder="<email-address>" autocomplete="off"></label><label>Manueller FQDN (optional)<input id="checkFqdn" placeholder="<hash>._smimecert.<mail-domain>"></label><label>Erwarteter SMIMEA Content (optional)<textarea id="checkContent" placeholder="3 0 0 ..."></textarea></label></div><button id="dnsRun" class="primary">Record per E-Mail/FQDN prüfen</button><div id="checkOwner" class="output-box muted">Noch kein Check ausgeführt.</div><div id="dnsStatus" class="resolver-grid"></div><div id="publishedCert" class="kv muted">Noch kein Zertifikat aus DNS gelesen.</div><p class="hint">Bei fehlendem Record: E-Mail-Adresse, FQDN, Hash, Zone und Record-Typ prüfen, TTL/Propagation abwarten und DNSSEC aktivieren.</p></section>
-</main><div id="toast" class="toast"></div>`;
+<header class="topbar" id="top">
+  <a class="brand" href="#top"><span class="logo">SM</span><span><b>SMIMEA Generator</b><small>RFC 8162 · clientseitig</small></span></a>
+  <nav class="menu"><a href="#check">Check</a><a href="#generate-flow">Generator</a><a href="#cloudflare">Cloudflare</a><a href="#outputs-card">Output</a></nav>
+  <button id="theme" class="ghost">🌙/☀️</button>
+</header>
+<main class="shell">
+  <section class="intro panel span">
+    <div><p class="eyebrow">S/MIME Discovery</p><h1>Prüfen, erzeugen, veröffentlichen.</h1><p>Die wichtigsten Wege sind getrennt: Im Check-Modus reicht eine E-Mail-Adresse, um bestehende SMIMEA Records und — bei <code>3 0 0</code> — das veröffentlichte Zertifikat abzurufen. Im Generator lädst du ein Zertifikat hoch und wählst SAN-Adressen aus.</p></div>
+    <div class="quick-actions"><a class="primary link-button" href="#check">Record prüfen</a><a class="secondary link-button" href="#generate-flow">Record erzeugen</a></div>
+  </section>
+
+  <aside class="panel sticky"><h2>Überblick</h2><div id="cards" class="status-grid"></div></aside>
+
+  <section class="panel focus" id="check">
+    <p class="step">Check-Modus</p><h2>Bestehenden Record prüfen</h2>
+    <p class="hint">Gib nur eine E-Mail-Adresse ein. Die App berechnet den passenden Owner Name, fragt Cloudflare und Google über DoH ab und zeigt den veröffentlichten SMIMEA Record. Vollständige Zertifikate aus <code>3 0 0</code> werden direkt dekodiert.</p>
+    <div class="form-grid"><label>E-Mail-Adresse<input id="checkEmail" placeholder="<email-address>" autocomplete="off"></label><label>Manueller FQDN (optional)<input id="checkFqdn" placeholder="<hash>._smimecert.<mail-domain>"></label><label class="wide">Erwarteter SMIMEA Content (optional)<textarea id="checkContent" placeholder="3 0 0 ..."></textarea></label></div>
+    <button id="dnsRun" class="primary">Record per E-Mail/FQDN prüfen</button>
+    <div id="checkOwner" class="output-box muted">Noch kein Check ausgeführt.</div>
+    <div id="dnsStatus" class="resolver-grid"></div>
+    <div id="publishedCert" class="kv muted">Noch kein Zertifikat aus DNS gelesen.</div>
+  </section>
+
+  <section class="panel" id="generate-flow">
+    <p class="step">Generator · Schritt 1</p><h2>Zertifikat hochladen</h2>
+    <div class="form-grid"><label>S/MIME-Zertifikat<input id="cert" type="file" accept=".pem,.crt,.cer,.der,.txt"></label><label>Manuelle DNS-Zone (optional)<input id="zone" placeholder="<zone-name>"></label></div>
+    <p class="hint">Nach dem Upload liest die App RFC822Name/SAN-E-Mail-Adressen aus dem Zertifikat aus.</p><div id="certWarnings"></div>
+  </section>
+
+  <section class="panel"><p class="step">Generator · Schritt 2</p><h2>SAN-Adressen auswählen</h2><div id="emailChoices" class="choice-list muted">Nach dem Upload erscheinen hier die gefundenen E-Mail-Adressen.</div></section>
+
+  <section class="panel"><p class="step">Generator · Zertifikat</p><h2>Zertifikatsdetails</h2><div id="certInfo" class="kv muted">Noch kein Zertifikat geladen.</div></section>
+
+  <section class="panel"><p class="step">Generator · Schritt 3</p><h2>Record-Format</h2><p class="notice">Empfohlen für S/MIME Discovery: <b>3 0 0</b>, damit das vollständige Zertifikat im DNS steht.</p><div class="form-grid three"><label>Usage<select id="usage"><option value="3">3 = DANE-EE</option><option value="0">0 = PKIX-TA</option><option value="1">1 = PKIX-EE</option><option value="2">2 = DANE-TA</option></select></label><label>Selector<select id="selector"><option value="0">0 = Full certificate</option><option value="1">1 = SubjectPublicKeyInfo</option></select></label><label>Matching Type<select id="matching"><option value="0">0 = Full data / no hash</option><option value="1">1 = SHA-256</option><option value="2">2 = SHA-512</option></select></label></div><button id="generate" class="primary">Records für ausgewählte Adressen erzeugen</button></section>
+
+  <section class="panel span" id="outputs-card"><p class="step">Output</p><h2>Erzeugte Records</h2><div id="outputs" class="outputs muted">Noch keine Records erzeugt.</div></section>
+
+  <section class="panel span" id="cloudflare"><p class="step">Veröffentlichen</p><h2>Cloudflare API oder curl</h2><p class="hint">Auf Cloudflare Pages nutzt die App standardmäßig die mitgelieferte Pages Function <code>/api/cloudflare-dns</code>. Dadurch funktioniert der API-Aufruf trotz Cloudflare-CORS-Limits. Auf anderen Hostern kannst du den curl-Befehl verwenden oder den direkten Browser-Aufruf testen.</p><div class="form-grid three"><label>API Token<input id="cfToken" type="password" autocomplete="off"></label><label>Zone Name<input id="cfZone" placeholder="<zone-name>"></label><label>Zone ID (optional)<input id="cfZoneId"></label><label>TTL<input id="ttl" type="number" min="60" value="300"></label><label>Modus<select id="mode"><option value="upsert">Upsert / create or update</option><option value="create">Create only</option><option value="recreate">Delete and recreate</option></select></label><label>Transport<select id="cfTransport"><option value="proxy">Cloudflare Pages Function</option><option value="direct">Direkt aus dem Browser (CORS-riskant)</option></select></label></div><label class="check"><input id="remember" type="checkbox"> Token lokal merken (localStorage) — unsicherer als Session</label><button id="cfRun" class="primary">Bei Cloudflare ausführen</button><pre id="cfStatus"></pre><details open><summary>curl-Fallback</summary><pre id="curl"></pre><p>Die API-Notiz wird automatisch als <code>SMIMEA for &lt;selected-email&gt;</code> gesetzt.</p></details></section>
+</main><div id="toast" class="toast"></div>`
 
 const $ = <T extends HTMLElement>(id: string) => document.querySelector<T>(`#${id}`)!;
 const zone = $('zone') as HTMLInputElement;
@@ -183,15 +211,11 @@ $('cfRun').addEventListener('click', async () => {
   try {
     if (!state.records.length) await generate();
     renderCurlCommands();
-    const tryBrowserApi = ($('tryBrowserApi') as HTMLInputElement).checked;
-    if (!tryBrowserApi) {
-      $('cfStatus').textContent = 'curl-Befehle wurden erzeugt. Direkte Browser-API ist deaktiviert, weil Cloudflare sie häufig per CORS blockiert.';
-      return;
-    }
-    $('cfStatus').textContent = 'Cloudflare Browser-API wird ausgeführt…';
+    const transport = ($('cfTransport') as HTMLSelectElement).value as 'proxy' | 'direct';
+    $('cfStatus').textContent = transport === 'proxy' ? 'Cloudflare Pages Function wird ausgeführt…' : 'Direkte Cloudflare Browser-API wird ausgeführt…';
     const results = [];
     for (const record of state.records) {
-      const result = await createCloudflareRecord({ token: ($('cfToken') as HTMLInputElement).value, zoneName: ($('cfZone') as HTMLInputElement).value || defaultZoneFor(record.email), zoneId: ($('cfZoneId') as HTMLInputElement).value, ttl: Number(($('ttl') as HTMLInputElement).value || 300), mode: ($('mode') as HTMLSelectElement).value as CloudflareMode }, record.fqdn, record.content, record.email);
+      const result = await createCloudflareRecord({ token: ($('cfToken') as HTMLInputElement).value, zoneName: ($('cfZone') as HTMLInputElement).value || defaultZoneFor(record.email), zoneId: ($('cfZoneId') as HTMLInputElement).value, ttl: Number(($('ttl') as HTMLInputElement).value || 300), mode: ($('mode') as HTMLSelectElement).value as CloudflareMode, transport }, record.fqdn, record.content, record.email);
       results.push(`${record.email}: ${result.message}`);
       if (result.curl) $('curl').textContent = `${$('curl').textContent}\n\n# Fallback for ${record.email}\n${result.curl}`;
     }

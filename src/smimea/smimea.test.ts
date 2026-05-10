@@ -3,7 +3,7 @@ import { extractCertificateBlobs, pemToDer } from './certificateParser';
 import { bytesToHex, localPartHash, relativeCloudflareName } from './emailHash';
 import { generateSmimeaRecord } from './smimeaRecord';
 import { cloudflareRecordBody } from './cloudflareApi';
-import { certificateDerFromSmimeaAnswer, parseDohResponse } from './dnsCheck';
+import { buildDnsQuery, certificateDerFromSmimeaAnswer, parseDnsMessage, parseDohResponse } from './dnsCheck';
 
 const SAMPLE_PEM = `-----BEGIN CERTIFICATE-----
 AQIDBAUG
@@ -65,6 +65,27 @@ describe('DoH response parsing', () => {
     const parsed = parseDohResponse({ Status: 0, AD: false, Answer: [{ name: 'x', type: 53, TTL: 120, data: '3 0 0 0102' }] });
     expect(parsed.ok).toBe(true);
     expect(parsed.message).toBe('SMIMEA Record gefunden.');
+  });
+
+
+  it('builds RFC 8484 Google dns-query wire requests with EDNS DNSSEC DO bit', () => {
+    const query = buildDnsQuery('abc._smimecert.example.org');
+    expect(query[4] << 8 | query[5]).toBe(1);
+    expect(query[10] << 8 | query[11]).toBe(1);
+    expect(bytesToHex(query.slice(-11))).toBe('00002904d0000080000000');
+  });
+
+  it('parses RFC 8484 DNS wire SMIMEA responses', () => {
+    const response = Uint8Array.from([
+      0x53, 0x4d, 0x81, 0xa0, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+      0x01, 0x78, 0x00, 0x00, 0x35, 0x00, 0x01,
+      0xc0, 0x0c, 0x00, 0x35, 0x00, 0x01, 0x00, 0x00, 0x01, 0x2c, 0x00, 0x05, 0x03, 0x00, 0x00, 0x01, 0x02,
+    ]);
+    const parsed = parseDnsMessage(response);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ad).toBe(true);
+    expect(parsed.ttl).toBe(300);
+    expect(parsed.answers).toEqual(['3 0 0 0102']);
   });
 
   it('extracts DER bytes from full-certificate SMIMEA answers only', () => {
